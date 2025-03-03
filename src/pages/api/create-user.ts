@@ -1,16 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import db from "../../lib/db";
-import bcrypt from "bcryptjs"; // Untuk enkripsi password
-
-// Fungsi untuk mendaftar admin
-export const createAdmin = async (username: string, password: string) => {
-  const hashedPassword = await bcrypt.hash(password, 10); // Enkripsi password
-  const result = await db.query(
-    "INSERT INTO users (username, password, role) VALUES ($1, $2, $3) RETURNING id",
-    [username, hashedPassword, "admin"]
-  );
-  return result.rows[0];
-};
+import bcrypt from "bcryptjs";
 
 export default async function handler(
   req: NextApiRequest,
@@ -21,12 +11,16 @@ export default async function handler(
     return res.status(405).json({ error: "Metode tidak diizinkan" });
   }
 
-  const { username, password } = req.body;
-  const role = "admin"; // Selalu admin untuk endpoint ini
+  const { username, password, role } = req.body;
 
   // Validasi input
-  if (!username || !password) {
+  if (!username || !password || !role) {
     return res.status(400).json({ error: "Semua field harus diisi!" });
+  }
+
+  // Validasi role (hanya user yang diperbolehkan di endpoint ini)
+  if (role !== "user") {
+    return res.status(400).json({ error: "Role tidak valid!" });
   }
 
   try {
@@ -45,23 +39,25 @@ export default async function handler(
     console.log("Encrypting password");
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Simpan admin baru ke database
-    console.log("Inserting new admin");
+    // Simpan user baru ke database
+    console.log("Inserting new user");
     const insertResult = await db.query(
       "INSERT INTO users (username, password, role) VALUES ($1, $2, $3) RETURNING id",
       [username, hashedPassword, role]
     );
 
     console.log(
-      "Admin created successfully with id:",
+      "User created successfully with id:",
       insertResult.rows?.[0]?.id
     );
     res.status(200).json({
-      message: "Admin berhasil dibuat",
+      message: "Akun siswa berhasil dibuat",
       userId: insertResult.rows?.[0]?.id,
     });
   } catch (error) {
-    console.error("Error creating admin:", error);
-    res.status(500).json({ error: "Terjadi kesalahan saat membuat admin" });
+    console.error("Error creating user:", error);
+    res
+      .status(500)
+      .json({ error: "Terjadi kesalahan saat membuat akun siswa" });
   }
 }

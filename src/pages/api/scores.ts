@@ -10,14 +10,26 @@ export const saveScore = async (userId: number, score: number) => {
   return result;
 };
 
-export default async (req: NextApiRequest, res: NextApiResponse) => {
-  if (req.method === "POST") {
-    const { userId, score } = req.body;
-    try {
-      const result = await saveScore(userId, score);
-      res.status(200).json({ message: "Nilai berhasil disimpan", result });
-    } catch (error) {
-      res.status(500).json({ error: "Gagal menyimpan nilai" });
-    }
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  // Hanya menerima metode GET
+  if (req.method !== "GET") {
+    return res.status(405).json({ error: "Metode tidak diizinkan" });
   }
-};
+
+  try {
+    // Ambil semua data skor
+    const result = await db.query(
+      "SELECT scores.*, users.username FROM scores JOIN users ON scores.user_id = users.id ORDER BY scores.created_at DESC"
+    );
+
+    res.status(200).json({ scores: result.rows });
+  } catch (error) {
+    console.error("Error fetching scores:", error);
+    res
+      .status(500)
+      .json({ error: "Terjadi kesalahan saat mengambil data skor" });
+  }
+}

@@ -1,24 +1,30 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import db from "../../../lib/db";
-import bcrypt from "bcryptjs";  // Untuk enkripsi password
+import db from "../../lib/db";
+import bcrypt from "bcryptjs"; // Untuk enkripsi password
 
 // Fungsi untuk mendaftar user
-export const registerUser = async (username: string, password: string, role: string) => {
+export const registerUser = async (
+  username: string,
+  password: string,
+  role: string
+) => {
   const hashedPassword = await bcrypt.hash(password, 10); // Enkripsi password
-  const [result] = await db.query(
-    "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
+  const result = await db.query(
+    "INSERT INTO users (username, password, role) VALUES ($1, $2, $3) RETURNING id",
     [username, hashedPassword, role]
   );
-  return result;
+  return result.rows[0];
 };
 
 export default async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method === "POST") {
     const { username, password, role } = req.body;
-    
+
     // Pastikan hanya role "user" yang bisa mendaftar
     if (role !== "user") {
-      return res.status(400).json({ error: "Hanya user yang bisa mendaftar melalui halaman ini" });
+      return res
+        .status(400)
+        .json({ error: "Hanya user yang bisa mendaftar melalui halaman ini" });
     }
 
     if (!username || !password) {
@@ -30,6 +36,7 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
       const result = await registerUser(username, password, role);
       res.status(200).json({ message: "User berhasil didaftarkan", result });
     } catch (error) {
+      console.error("Register error:", error);
       res.status(500).json({ error: "Terjadi kesalahan saat pendaftaran" });
     }
   } else {
